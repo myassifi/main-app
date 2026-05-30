@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Search, Package2, AlertCircle, RefreshCw, X, DollarSign, TrendingUp, Package, ShoppingCart, ArrowUpDown, Download, AlertTriangle, Grid3x3, List, FileUp, Copy, Sparkles, MoreHorizontal } from 'lucide-react';
+import { Plus, Search, Package2, AlertCircle, RefreshCw, X, DollarSign, TrendingUp, Package, ShoppingCart, ArrowUpDown, Download, AlertTriangle, Grid3x3, List, FileUp, Copy, Sparkles, MoreHorizontal, Car, ChevronDown, ChevronRight } from 'lucide-react';
 import InvoiceUpload from '@/components/invoice/InvoiceUpload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -175,7 +175,8 @@ export default function InventoryNew() {
   });
   const [searchSuggestions, setSearchSuggestions] = useState<InventoryItem[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'vehicle'>('grid');
+  const [collapsedMakes, setCollapsedMakes] = useState<Set<string>>(new Set());
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importingPreset, setImportingPreset] = useState(false);
   const [cleanDialogOpen, setCleanDialogOpen] = useState(false);
@@ -334,7 +335,7 @@ export default function InventoryNew() {
       totalItems,
       avgCost,
       uniqueSkus: inventory.length,
-      lowStock: inventory.filter(i => i.quantity <= (i.low_stock_threshold || 3) && i.quantity > 0).length,
+      lowStock: inventory.filter(i => (i.quantity <= (i.low_stock_threshold || 3) || i.quantity === 1) && i.quantity > 0).length,
       outOfStock: inventory.filter(i => i.quantity === 0).length,
     };
   }, [inventory]);
@@ -451,7 +452,7 @@ export default function InventoryNew() {
     if (activeTab !== 'all') {
       filtered = filtered.filter(item => {
         const threshold = item.low_stock_threshold || 3;
-        if (activeTab === 'low') return item.quantity <= threshold && item.quantity > 0;
+        if (activeTab === 'low') return (item.quantity <= threshold || item.quantity === 1) && item.quantity > 0;
         if (activeTab === 'out') return item.quantity === 0;
         if (activeTab === 'in-stock') return item.quantity > threshold;
         if (activeTab === 'reorder') {
@@ -528,15 +529,15 @@ export default function InventoryNew() {
 
   // Stats
   const stats = useMemo(() => {
-    const lowStockItems = inventory.filter(i => i.quantity <= (i.low_stock_threshold || 3) && i.quantity > 0);
+    const lowStockItems = inventory.filter(i => (i.quantity <= (i.low_stock_threshold || 3) || i.quantity === 1) && i.quantity > 0);
     const outOfStockItems = inventory.filter(i => i.quantity === 0);
-    const reorderItems = inventory.filter(i => i.quantity < (i.low_stock_threshold || 3));
+    const reorderItems = inventory.filter(i => i.quantity < (i.low_stock_threshold || 3) || i.quantity === 1);
     
     return {
       all: inventory.length,
       low: lowStockItems.length,
       out: outOfStockItems.length,
-      inStock: inventory.filter(i => i.quantity > (i.low_stock_threshold || 3)).length,
+      inStock: inventory.filter(i => i.quantity > (i.low_stock_threshold || 3) && i.quantity > 1).length,
       reorder: reorderItems.length,
     };
   }, [inventory]);
@@ -1374,6 +1375,7 @@ export default function InventoryNew() {
                 size="sm"
                 className="h-7 px-2"
                 onClick={() => setViewMode('grid')}
+                title="Grid View"
               >
                 <Grid3x3 className="h-4 w-4" />
               </Button>
@@ -1382,8 +1384,18 @@ export default function InventoryNew() {
                 size="sm"
                 className="h-7 px-2"
                 onClick={() => setViewMode('list')}
+                title="List View"
               >
                 <List className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'vehicle' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 px-2"
+                onClick={() => setViewMode('vehicle')}
+                title="By Vehicle"
+              >
+                <Car className="h-4 w-4" />
               </Button>
             </div>
           </div>
@@ -1418,6 +1430,35 @@ export default function InventoryNew() {
               <Button variant="ghost" size="sm" onClick={clearFilters} className="touch-target">
                 Clear all
               </Button>
+            </div>
+          )}
+
+          {/* Make Quick-Filter Bar */}
+          {uniqueMakes.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+              <button
+                onClick={() => setFilters({ ...filters, make: 'all' })}
+                className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                  filters.make === 'all'
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-card border-border text-muted-foreground hover:border-primary hover:text-primary'
+                }`}
+              >
+                <Car className="h-3 w-3" /> All Makes
+              </button>
+              {(uniqueMakes as string[]).sort().map((make) => (
+                <button
+                  key={make}
+                  onClick={() => setFilters({ ...filters, make: filters.make === make ? 'all' : make })}
+                  className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                    filters.make === make
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-card border-border text-muted-foreground hover:border-primary hover:text-primary'
+                  }`}
+                >
+                  {make}
+                </button>
+              ))}
             </div>
           )}
 
@@ -1493,9 +1534,63 @@ export default function InventoryNew() {
             </div>
           )}
 
-          {/* Desktop View - Grid or List */}
+          {/* Desktop View - Grid, List, or By Vehicle */}
           <div className="hidden lg:block">
-            {viewMode === 'grid' ? (
+            {viewMode === 'vehicle' ? (
+              (() => {
+                const makeGroups = filteredInventory.reduce((acc, item) => {
+                  const make = item.make || 'Unknown Make';
+                  if (!acc[make]) acc[make] = [];
+                  acc[make].push(item);
+                  return acc;
+                }, {} as Record<string, typeof filteredInventory>);
+                const sortedMakes = Object.keys(makeGroups).sort();
+                return (
+                  <div className="space-y-4">
+                    {sortedMakes.map((make) => {
+                      const items = makeGroups[make];
+                      const isCollapsed = collapsedMakes.has(make);
+                      const lowCount = items.filter(i => (i.quantity <= (i.low_stock_threshold || 3) || i.quantity === 1) && i.quantity > 0).length;
+                      const outCount = items.filter(i => i.quantity === 0).length;
+                      return (
+                        <div key={make} className="rounded-xl border bg-card shadow-sm overflow-hidden">
+                          <button
+                            className="w-full flex items-center justify-between px-4 py-3 bg-muted/30 hover:bg-muted/60 transition-colors"
+                            onClick={() => {
+                              const next = new Set(collapsedMakes);
+                              if (isCollapsed) next.delete(make); else next.add(make);
+                              setCollapsedMakes(next);
+                            }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Car className="h-5 w-5 text-primary" />
+                              <span className="font-bold text-base">{make}</span>
+                              <Badge variant="secondary" className="text-xs">{items.length} key{items.length !== 1 ? 's' : ''}</Badge>
+                              {outCount > 0 && <Badge variant="destructive" className="text-xs">{outCount} out</Badge>}
+                              {lowCount > 0 && <Badge variant="outline" className="text-xs bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-400">{lowCount} low</Badge>}
+                            </div>
+                            {isCollapsed ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                          </button>
+                          {!isCollapsed && (
+                            <div className="grid grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 p-4">
+                              {items.map((item) => (
+                                <InventoryGridCard
+                                  key={item.id}
+                                  item={item}
+                                  showReorderNeed={activeTab === 'reorder'}
+                                  onEdit={handleEdit}
+                                  onDelete={handleDelete}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()
+            ) : viewMode === 'grid' ? (
               <div className="grid grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
                 {filteredInventory.map((item) => (
                   <InventoryGridCard
@@ -1661,7 +1756,7 @@ export default function InventoryNew() {
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <Label>Year From</Label>
                     <Select value={formData.year_from} onValueChange={(value) => setFormData({ ...formData, year_from: value })}>

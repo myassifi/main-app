@@ -32,7 +32,7 @@ interface InventoryGridCardProps {
 }
 
 export function InventoryGridCard({ item, showReorderNeed, onEdit, onDelete }: InventoryGridCardProps) {
-  const isLowStock = item.low_stock_threshold && item.quantity <= item.low_stock_threshold;
+  const isLowStock = (item.low_stock_threshold && item.quantity <= item.low_stock_threshold) || item.quantity === 1;
   const isOutOfStock = item.quantity === 0;
   const threshold = item.low_stock_threshold || 3;
   const reorderNeed = Math.max(0, threshold - item.quantity);
@@ -74,26 +74,49 @@ export function InventoryGridCard({ item, showReorderNeed, onEdit, onDelete }: I
         </div>
 
         {/* Content Section */}
-        <div className="p-4 space-y-2">
-          {/* Title */}
-          <h3 className="font-semibold text-sm line-clamp-2 min-h-[2.5rem]">
-            {item.item_name || item.sku}
-          </h3>
+        <div className="p-4 space-y-3">
 
-          {/* Make/Model/Year */}
-          {(item.make || item.model) && (
-            <p className="text-xs text-muted-foreground">
-              {item.year_from && `${item.year_from} - ${item.year_to || 'Present'} `}
-              {item.make} {item.model}
-            </p>
+          {/* Vehicle headline */}
+          {(item.make || item.model) ? (
+            <div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-bold text-base text-foreground">
+                  {[item.make, item.model].filter(Boolean).join(' ')}
+                </span>
+                {item.year_from && (
+                  <Badge variant="outline" className="text-xs px-1.5 py-0 font-mono border-primary/30 text-primary">
+                    {item.year_from}{item.year_to && item.year_to !== item.year_from ? `–${item.year_to}` : ''}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{item.item_name}</p>
+            </div>
+          ) : (
+            <h3 className="font-semibold text-sm line-clamp-2">{item.item_name || item.sku}</h3>
           )}
 
-          {/* SKU */}
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">SKU:</span>
-            <Badge variant="outline" className="text-xs font-mono">
-              {item.sku}
-            </Badge>
+          {/* Category + Chip badges */}
+          <div className="flex flex-wrap gap-1">
+            {item.category && (
+              <Badge variant="secondary" className="text-xs">{item.category}</Badge>
+            )}
+            {item.key_type && (
+              <Badge variant="outline" className="text-xs text-muted-foreground">{item.key_type}</Badge>
+            )}
+          </div>
+
+          {/* SKU + FCC */}
+          <div className="space-y-1 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">SKU</span>
+              <span className="font-mono text-foreground">{item.sku}</span>
+            </div>
+            {item.fcc_id && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">FCC ID</span>
+                <span className="font-mono text-foreground">{item.fcc_id}</span>
+              </div>
+            )}
           </div>
 
           {/* Price & Quantity */}
@@ -102,10 +125,10 @@ export function InventoryGridCard({ item, showReorderNeed, onEdit, onDelete }: I
               <div className="text-lg font-bold text-primary">
                 {formatCurrency(item.cost || 0)}
               </div>
-              <div className="text-xs text-muted-foreground">Unit Price</div>
+              <div className="text-xs text-muted-foreground">Unit Cost</div>
             </div>
             <div className="text-right">
-              <div className={`text-lg font-semibold ${isOutOfStock ? 'text-destructive' : isLowStock ? 'text-orange-500' : 'text-foreground'}`}>
+              <div className={`text-lg font-semibold ${isOutOfStock ? 'text-destructive' : isLowStock ? 'text-amber-500' : 'text-foreground'}`}>
                 {item.quantity}
               </div>
               <div className="text-xs text-muted-foreground">In Stock</div>
@@ -115,22 +138,8 @@ export function InventoryGridCard({ item, showReorderNeed, onEdit, onDelete }: I
             </div>
           </div>
 
-          {/* Additional Info */}
-          {(item.fcc_id || item.supplier) && (
-            <div className="pt-2 border-t space-y-1 text-xs text-muted-foreground">
-              {item.fcc_id && (
-                <div className="flex justify-between">
-                  <span>FCC ID:</span>
-                  <span className="font-mono">{item.fcc_id}</span>
-                </div>
-              )}
-              {item.supplier && (
-                <div className="flex justify-between">
-                  <span>Supplier:</span>
-                  <span className="truncate ml-2">{item.supplier}</span>
-                </div>
-              )}
-            </div>
+          {item.supplier && (
+            <p className="text-xs text-muted-foreground truncate">📦 {item.supplier}</p>
           )}
         </div>
       </CardContent>

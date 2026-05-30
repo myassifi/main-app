@@ -310,15 +310,16 @@ export default function Customers() {
   const openSMS = (phone: string, body: string) => {
     const normalized = normalizePhone(phone);
     const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-    window.location.href = `sms:${normalized}${isIOS ? '&' : '?'}body=${encodeURIComponent(body)}`;
+    const link = document.createElement('a');
+    link.href = `sms:${normalized}${isIOS ? '&' : '?'}body=${encodeURIComponent(body)}`;
+    link.click();
   };
 
   const handleRequestReview = (customer: Customer) => {
     if (!customer.phone) return;
     const reviewUrl = (import.meta.env.VITE_GOOGLE_REVIEW_URL || '').trim();
-    const message = reviewUrl
-      ? `Hi ${customer.name}! Thanks for choosing Heat Wave Locksmith. If you were happy with the service, could you leave a quick review here? ${reviewUrl}`
-      : `Hi ${customer.name}! Thanks for choosing Heat Wave Locksmith. If you were happy with the service, could you leave us a quick review? Reply here and I’ll send you the link.`;
+    const msgBody = 'Hi ' + customer.name + "! We'd really appreciate an honest review from you — it means the world to a small business like ours!";
+    const message = reviewUrl ? msgBody + ' ' + reviewUrl : msgBody;
     openSMS(customer.phone, message);
   };
 
@@ -455,11 +456,11 @@ export default function Customers() {
       </div>
 
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <h1 className="text-3xl font-bold text-primary">Customers</h1>
           
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="max-w-xs w-full">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex-1 sm:w-64">
               <SearchBar
                 placeholder="Search customers..."
                 value={searchTerm}
@@ -468,7 +469,7 @@ export default function Customers() {
             </div>
             
             <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-[130px] sm:w-[160px]">
                 <ArrowUpDown className="h-4 w-4 mr-2" />
                 <SelectValue />
               </SelectTrigger>
@@ -483,24 +484,24 @@ export default function Customers() {
         </div>
 
         {/* Filter Chips */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
           <Badge
             variant={filterBy === 'all' ? 'default' : 'outline'}
-            className="cursor-pointer hover:bg-primary/90 transition-colors px-3 py-1"
+            className="cursor-pointer hover:bg-primary/90 transition-colors px-3 py-1 shrink-0 whitespace-nowrap"
             onClick={() => setFilterBy('all')}
           >
             All Customers
           </Badge>
           <Badge
             variant={filterBy === 'vip' ? 'default' : 'outline'}
-            className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors px-3 py-1 border-accent text-accent"
+            className="cursor-pointer hover:bg-yellow-500 hover:text-white transition-colors px-3 py-1 border-yellow-400 text-yellow-600 dark:border-yellow-500 dark:text-yellow-400 shrink-0 whitespace-nowrap"
             onClick={() => setFilterBy('vip')}
           >
             ⭐ VIP ({customers.filter(c => (c.total_revenue || 0) > 500).length})
           </Badge>
           <Badge
             variant={filterBy === 'active' ? 'default' : 'outline'}
-            className="cursor-pointer hover:bg-green-500 hover:text-white transition-colors px-3 py-1 border-green-500 text-green-600"
+            className="cursor-pointer hover:bg-green-500 hover:text-white transition-colors px-3 py-1 border-green-500 text-green-600 shrink-0 whitespace-nowrap"
             onClick={() => setFilterBy('active')}
           >
             ✓ Active ({customers.filter(c => {
@@ -511,7 +512,7 @@ export default function Customers() {
           </Badge>
           <Badge
             variant={filterBy === 'new' ? 'default' : 'outline'}
-            className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors px-3 py-1 border-primary text-primary"
+            className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors px-3 py-1 border-primary text-primary shrink-0 whitespace-nowrap"
             onClick={() => setFilterBy('new')}
           >
             ✨ New ({customers.filter(c => {
@@ -522,7 +523,7 @@ export default function Customers() {
           </Badge>
           <Badge
             variant={filterBy === 'inactive' ? 'default' : 'outline'}
-            className="cursor-pointer hover:bg-amber-500 hover:text-white transition-colors px-3 py-1 border-amber-500 text-amber-600"
+            className="cursor-pointer hover:bg-amber-500 hover:text-white transition-colors px-3 py-1 border-amber-500 text-amber-600 shrink-0 whitespace-nowrap"
             onClick={() => setFilterBy('inactive')}
           >
             ⏰ Inactive ({customers.filter(c => {
@@ -541,7 +542,7 @@ export default function Customers() {
           if (!open) resetForm();
         }}>
           <DialogTrigger asChild>
-            <Button className="gap-2">
+            <Button className="gap-2 w-full sm:w-auto">
               <Plus className="h-4 w-4" />
               Add Customer
             </Button>
@@ -702,10 +703,11 @@ export default function Customers() {
                       size="sm"
                       variant="outline"
                       onClick={() => handleRequestReview(customer)}
-                      className="gap-1"
-                      title="Request Review"
+                      className="gap-1 border-yellow-400 text-yellow-600 hover:bg-yellow-50 hover:border-yellow-500 dark:border-yellow-600 dark:text-yellow-400 dark:hover:bg-yellow-900/30"
+                      title="Send Google Review Request"
                     >
-                      <Star className="h-3 w-3" />
+                      <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                      <span className="text-xs">Review</span>
                     </Button>
                   )}
                   {customer.email && (
@@ -814,8 +816,8 @@ export default function Customers() {
                   {/* Customer Segment Badges */}
                   <div className="pt-2 flex flex-wrap gap-2">
                     {(customer.total_revenue || 0) > 1000 && (
-                      <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
-                        <Star className="h-3 w-3 mr-1" />
+                      <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 border border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-600">
+                        <Star className="h-3 w-3 mr-1 fill-yellow-500 text-yellow-500" />
                         VIP
                       </Badge>
                     )}

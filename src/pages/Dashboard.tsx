@@ -770,7 +770,7 @@ export default function Dashboard() {
         <div className="flex flex-wrap gap-2 items-center">
           <Input
             placeholder="Quick search jobs (press Enter)"
-            className="w-[220px] hidden md:block"
+            className="w-[220px] hidden lg:block"
             onKeyDown={(e) => {
               const target = e.target as HTMLInputElement;
               if (e.key === 'Enter' && target.value.trim()) {
@@ -855,30 +855,26 @@ export default function Dashboard() {
             const ts = lastUpdatedAt ?? (dataUpdatedAt ? new Date(dataUpdatedAt) : null);
             if (isFetching) {
               return (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground hidden sm:inline">
                   Refreshing
                 </span>
               );
             }
             if (ts) {
               return (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground hidden sm:inline">
                   Updated {format(ts, 'h:mm:ss a')}
                 </span>
               );
             }
             if (lastRefreshAttemptAt) {
               return (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground hidden sm:inline">
                   Attempted {format(lastRefreshAttemptAt, 'h:mm:ss a')}
                 </span>
               );
             }
-            return (
-              <span className="text-xs text-muted-foreground">
-                Not updated yet
-              </span>
-            );
+            return null;
           })()}
         </div>
       </div>
@@ -1039,7 +1035,7 @@ export default function Dashboard() {
       </div>
 
       {/* Charts */}
-      <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Income Trend</CardTitle>

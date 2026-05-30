@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ReceiptDialog } from '@/components/ReceiptDialog';
-import { Plus, Search, Edit, Trash2, Calendar, DollarSign, Phone, MapPin, Navigation, Package, TrendingUp, Target, Briefcase, Clock, CheckCircle, AlertCircle, ArrowUpDown, MessageSquare } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Calendar, DollarSign, Phone, MapPin, Navigation, Package, TrendingUp, Target, Briefcase, Clock, CheckCircle, AlertCircle, ArrowUpDown, MessageSquare, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -368,7 +368,9 @@ export default function Jobs() {
   const handleCallCustomer = (phone: string) => {
     if (phone) {
       const normalized = phone.replace(/[^\d+]/g, '');
-      window.location.href = `tel:${normalized}`;
+      const link = document.createElement('a');
+      link.href = `tel:${normalized}`;
+      link.click();
     }
   };
 
@@ -376,7 +378,31 @@ export default function Jobs() {
     if (phone) {
       const message = `Hi ${customerName}, this is regarding your ${jobType} service. `;
       const normalized = phone.replace(/[^\d+]/g, '');
-      window.location.href = `sms:${normalized}${/iPhone|iPad|iPod/.test(navigator.userAgent) ? '&' : '?'}body=${encodeURIComponent(message)}`;
+      const sep = /iPhone|iPad|iPod/.test(navigator.userAgent) ? '&' : '?';
+      const link = document.createElement('a');
+      link.href = `sms:${normalized}${sep}body=${encodeURIComponent(message)}`;
+      link.click();
+    }
+  };
+
+  const handleSendReviewRequest = (phone: string, customerName: string) => {
+    const reviewUrl = (import.meta.env.VITE_GOOGLE_REVIEW_URL || '').trim();
+    const msgBody = "Hi " + customerName + "! We'd really appreciate an honest review from you — it means the world to a small business like ours!";
+    const message = reviewUrl ? msgBody + ' ' + reviewUrl : msgBody;
+    if (phone) {
+      const normalized = phone.replace(/[^\d+]/g, '');
+      const sep = /iPhone|iPad|iPod/.test(navigator.userAgent) ? '&' : '?';
+      const link = document.createElement('a');
+      link.href = `sms:${normalized}${sep}body=${encodeURIComponent(message)}`;
+      link.click();
+    } else {
+      try {
+        navigator.clipboard.writeText(message).then(() => {
+          toast({ title: 'Review message copied!', description: 'Paste it in Messenger, WhatsApp, or anywhere.' });
+        });
+      } catch {
+        toast({ title: 'Review message', description: message });
+      }
     }
   };
 
@@ -494,7 +520,7 @@ export default function Jobs() {
   return (
     <div className="space-y-6">
       {/* Job Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Jobs</CardTitle>
@@ -641,7 +667,7 @@ export default function Jobs() {
                 </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="vehicle_lock_details">Vehicle/Lock Details</Label>
                   <Input
@@ -675,7 +701,7 @@ export default function Jobs() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="price">Price</Label>
                   <Input
@@ -814,7 +840,7 @@ export default function Jobs() {
         </div>
         
         {/* Filter Chips */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
           <Badge 
             variant={!statusFilter ? "default" : "outline"}
             className="cursor-pointer hover:bg-primary/90 transition-colors px-3 py-1"
@@ -997,7 +1023,19 @@ export default function Jobs() {
                         className="h-11 sm:h-8 text-sm sm:text-xs gap-1 transition-colors"
                         title="Send Receipt"
                       >
-                        📧 <span className="hidden sm:inline">Receipt</span>
+                        📧 <span>Receipt</span>
+                      </Button>
+                    )}
+                    {job.status === 'completed' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleSendReviewRequest(job.customers?.phone || '', job.customers?.name || 'there')}
+                        className="h-11 sm:h-8 text-sm sm:text-xs gap-1 border-yellow-400 text-yellow-600 hover:bg-yellow-50 hover:border-yellow-500 dark:border-yellow-600 dark:text-yellow-400 dark:hover:bg-yellow-900/30"
+                        title="Request Google Review via SMS"
+                      >
+                        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                        <span>Review</span>
                       </Button>
                     )}
                     <Button

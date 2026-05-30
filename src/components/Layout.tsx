@@ -38,7 +38,7 @@ export function Layout({ children }: LayoutProps) {
     queryFn: async () => {
       const items = await api.getInventory();
       return (items || []).filter(
-        (i: any) => i.quantity === 0 || i.quantity <= (i.low_stock_threshold || 3)
+        (i: any) => i.quantity === 0 || i.quantity <= (i.low_stock_threshold || 3) || i.quantity === 1
       ).length;
     },
     staleTime: 60_000,
@@ -164,8 +164,8 @@ export function Layout({ children }: LayoutProps) {
         {/* Bottom Navigation for Mobile */}
         <BottomNav />
         
-        {/* Floating Action Button for Mobile (hidden when bottom nav is active) */}
-        <div className="md:block hidden">
+        {/* Floating Action Button for Mobile (hidden on desktop since sidebar handles nav) */}
+        <div className="md:hidden">
           <FloatingActionButton />
         </div>
       </div>

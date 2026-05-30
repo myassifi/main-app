@@ -33,7 +33,7 @@ interface SwipeableInventoryCardProps {
 }
 
 export function SwipeableInventoryCard({ item, showReorderNeed, onQuantityChange, onEdit, onDelete }: SwipeableInventoryCardProps) {
-  const isLowStock = item.quantity <= (item.low_stock_threshold || 3);
+  const isLowStock = item.quantity <= (item.low_stock_threshold || 3) || item.quantity === 1;
   const threshold = item.low_stock_threshold || 3;
   const reorderNeed = Math.max(0, threshold - item.quantity);
   
@@ -43,28 +43,44 @@ export function SwipeableInventoryCard({ item, showReorderNeed, onQuantityChange
         <div className="flex gap-3">
           {/* Content */}
           <div className="flex-1 min-w-0">
-            <div className="flex justify-between items-start mb-1">
-              <div className="flex-1 mr-2 min-w-0">
-                <h3 className="font-semibold text-base truncate">{item.item_name || 'Unnamed Item'}</h3>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge variant="outline" className="text-xs font-normal">
-                    {item.sku}
-                  </Badge>
-                  {isLowStock && (
-                    <Badge variant="destructive" className="text-xs px-1.5 py-0 h-5">
-                      Low Stock
-                    </Badge>
+            <div className="flex justify-between items-start gap-2">
+              <div className="flex-1 min-w-0">
+                {/* Vehicle headline */}
+                {(item.make || item.model) ? (
+                  <div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-bold text-base text-foreground">
+                        {[item.make, item.model].filter(Boolean).join(' ')}
+                      </span>
+                      {item.year_from && (
+                        <Badge variant="outline" className="text-xs px-1.5 py-0 font-mono border-primary/40 text-primary">
+                          {item.year_from}{item.year_to && item.year_to !== item.year_from ? `–${item.year_to}` : ''}
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">{item.item_name}</p>
+                  </div>
+                ) : (
+                  <h3 className="font-semibold text-base truncate">{item.item_name || 'Unnamed Item'}</h3>
+                )}
+                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                  {item.category && (
+                    <Badge variant="secondary" className="text-xs px-1.5 py-0">{item.category}</Badge>
                   )}
+                  <Badge variant="outline" className="text-xs font-mono px-1.5 py-0">{item.sku}</Badge>
+                  {item.quantity === 0 ? (
+                    <Badge variant="destructive" className="text-xs px-1.5 py-0 h-5">Out of Stock</Badge>
+                  ) : isLowStock ? (
+                    <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-400">Low Stock</Badge>
+                  ) : null}
                   {showReorderNeed && reorderNeed > 0 && (
-                    <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5">
-                      Need {reorderNeed}
-                    </Badge>
+                    <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5">Need {reorderNeed}</Badge>
                   )}
                 </div>
               </div>
               <div className="text-right flex-shrink-0">
-                 <div className="font-semibold">{formatCurrency(item.cost || 0)}</div>
-                 <div className="text-xs text-muted-foreground">{item.make} {item.model}</div>
+                <div className="font-bold text-primary">{formatCurrency(item.cost || 0)}</div>
+                <div className="text-xs text-muted-foreground">cost</div>
               </div>
             </div>
           </div>

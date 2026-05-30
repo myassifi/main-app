@@ -37,10 +37,9 @@ export function InventoryDataTable({ data, showReorderNeed, onQuantityChange, on
       <table className="w-full">
         <thead>
           <tr className="border-b bg-muted/50">
-            <th className="p-3 text-left text-sm font-medium">Item Name</th>
+            <th className="p-3 text-left text-sm font-medium">Item / Vehicle</th>
             <th className="p-3 text-left text-sm font-medium">SKU</th>
-            <th className="p-3 text-left text-sm font-medium">Make</th>
-            <th className="p-3 text-left text-sm font-medium">Model</th>
+            <th className="p-3 text-left text-sm font-medium hidden md:table-cell">Category</th>
             <th className="p-3 text-right text-sm font-medium">Quantity</th>
             {showReorderNeed && (
               <th className="p-3 text-right text-sm font-medium">Need</th>
@@ -52,24 +51,49 @@ export function InventoryDataTable({ data, showReorderNeed, onQuantityChange, on
         </thead>
         <tbody>
           {data.map((item) => {
-            const isLowStock = item.low_stock_threshold && item.quantity <= item.low_stock_threshold;
+            const isLowStock = (item.low_stock_threshold && item.quantity <= item.low_stock_threshold) || item.quantity === 1;
             const threshold = item.low_stock_threshold || 3;
             const reorderNeed = Math.max(0, threshold - item.quantity);
             return (
               <tr key={item.id} className="border-b hover:bg-muted/50">
                 <td className="p-3">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{item.item_name}</span>
-                    {item.quantity === 0 ? (
-                      <Badge variant="destructive" className="text-xs">Out of Stock</Badge>
-                    ) : isLowStock ? (
-                      <Badge variant="outline" className="text-xs bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-400">Low Stock</Badge>
-                    ) : null}
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-sm">{item.item_name || item.sku}</span>
+                      {item.quantity === 0 ? (
+                        <Badge variant="destructive" className="text-xs">Out of Stock</Badge>
+                      ) : isLowStock ? (
+                        <Badge variant="outline" className="text-xs bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-400">Low Stock</Badge>
+                      ) : null}
+                    </div>
+                    {(item.make || item.model) && (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {(item.make || item.model) && (
+                          <span className="text-xs font-medium text-primary">
+                            {[item.make, item.model].filter(Boolean).join(' ')}
+                          </span>
+                        )}
+                        {item.year_from && (
+                          <Badge variant="outline" className="text-xs px-1.5 py-0 font-mono border-muted-foreground/30 text-muted-foreground">
+                            {item.year_from}{item.year_to && item.year_to !== item.year_from ? `–${item.year_to}` : ''}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                    {item.fcc_id && (
+                      <p className="text-xs text-muted-foreground font-mono">FCC: {item.fcc_id}</p>
+                    )}
                   </div>
                 </td>
-                <td className="p-3 text-sm text-muted-foreground">{item.sku || '-'}</td>
-                <td className="p-3 text-sm text-muted-foreground">{item.make || '-'}</td>
-                <td className="p-3 text-sm text-muted-foreground">{item.model || '-'}</td>
+                <td className="p-3 text-sm text-muted-foreground font-mono">{item.sku || '-'}</td>
+                <td className="p-3 hidden md:table-cell">
+                  {item.category && (
+                    <Badge variant="secondary" className="text-xs">{item.category}</Badge>
+                  )}
+                  {item.key_type && (
+                    <p className="text-xs text-muted-foreground mt-0.5">{item.key_type}</p>
+                  )}
+                </td>
                 <td className="p-3 text-right font-medium">{item.quantity}</td>
                 {showReorderNeed && (
                   <td className="p-3 text-right font-medium text-primary">{reorderNeed}</td>
