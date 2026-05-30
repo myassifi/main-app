@@ -386,9 +386,9 @@ export default function Jobs() {
   };
 
   const handleSendReviewRequest = (phone: string, customerName: string) => {
-    const reviewUrl = (import.meta.env.VITE_GOOGLE_REVIEW_URL || '').trim();
-    const msgBody = "Hi " + customerName + "! We'd really appreciate an honest review from you — it means the world to a small business like ours!";
-    const message = reviewUrl ? msgBody + ' ' + reviewUrl : msgBody;
+    const reviewUrl = (import.meta.env.VITE_GOOGLE_REVIEW_URL || 'https://g.page/r/CdG9CfQut70YEBM/review').trim();
+    const msgBody = "Hi " + customerName + "! We'd really appreciate an honest review from you — it means the world to a small business like ours! " + reviewUrl;
+    const message = msgBody;
     if (phone) {
       const normalized = phone.replace(/[^\d+]/g, '');
       const sep = /iPhone|iPad|iPod/.test(navigator.userAgent) ? '&' : '?';

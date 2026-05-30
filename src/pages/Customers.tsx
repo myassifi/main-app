@@ -317,9 +317,8 @@ export default function Customers() {
 
   const handleRequestReview = (customer: Customer) => {
     if (!customer.phone) return;
-    const reviewUrl = (import.meta.env.VITE_GOOGLE_REVIEW_URL || '').trim();
-    const msgBody = 'Hi ' + customer.name + "! We'd really appreciate an honest review from you — it means the world to a small business like ours!";
-    const message = reviewUrl ? msgBody + ' ' + reviewUrl : msgBody;
+    const reviewUrl = (import.meta.env.VITE_GOOGLE_REVIEW_URL || 'https://g.page/r/CdG9CfQut70YEBM/review').trim();
+    const message = 'Hi ' + customer.name + "! We'd really appreciate an honest review from you — it means the world to a small business like ours! " + reviewUrl;
     openSMS(customer.phone, message);
   };
 
