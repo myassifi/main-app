@@ -33,55 +33,81 @@ export function parseXlsxInvoice(workbook: XLSX.WorkBook): { supplier: string; i
     return -1;
   };
 
-  const skuCol   = col(['sku', 'part', 'item #', 'item#', 'code', 'product id', 'part number']);
-  const descCol  = col(['desc', 'name', 'item name', 'product', 'title']);
-  const qtyCol   = col(['qty', 'quantity', 'ordered', 'amount']);
-  const priceCol = col(['price', 'unit price', 'cost', 'each', 'rate']);
-  const totalCol = col(['total', 'ext', 'extended', 'line total']);
-  const supplierCol = col(['supplier', 'vendor', 'brand', 'source']);
+  // Primary columns matching your Excel structure:
+  // make | model | year from | year to | category | fcc id | chip type | supplier | quantity | unit cost | low stock
+  const makeCol      = col(['make']);
+  const modelCol     = col(['model']);
+  const yearFromCol  = col(['year from', 'yearfrom', 'year_from', 'from']);
+  const yearToCol    = col(['year to', 'yearto', 'year_to', 'to']);
+  const categoryCol  = col(['category', 'cat', 'type']);
+  const fccIdCol     = col(['fcc id', 'fccid', 'fcc', 'fcc_id']);
+  const chipTypeCol  = col(['chip type', 'chiptype', 'chip', 'key type', 'keytype']);
+  const supplierCol  = col(['supplier', 'vendor', 'brand', 'source']);
+  const qtyCol       = col(['quantity', 'qty', 'ordered', 'amount']);
+  const priceCol     = col(['unit cost', 'price', 'cost', 'each', 'unit price', 'rate']);
+  const lowStockCol  = col(['low stock', 'lowstock', 'low_stock', 'threshold', 'reorder']);
 
-  // Detect supplier from sheet name or first few rows
+  // Detect global supplier from first rows if supplier column absent
   const topText = rows.slice(0, 5).flat().join(' ').toLowerCase();
-  let supplier = 'unknown';
-  if (topText.includes('key4')) supplier = 'key4.com';
-  else if (topText.includes('transponder island')) supplier = 'transponderisland.com';
-  else if (topText.includes('xhorse')) supplier = 'xhorse';
-  else if (topText.includes('keydiy')) supplier = 'keydiy';
-  else if (topText.includes('autel')) supplier = 'autel';
+  let globalSupplier = 'unknown';
+  if (topText.includes('key4')) globalSupplier = 'key4.com';
+  else if (topText.includes('transponder island')) globalSupplier = 'transponderisland.com';
+  else if (topText.includes('xhorse')) globalSupplier = 'xhorse';
+  else if (topText.includes('keydiy')) globalSupplier = 'keydiy';
+  else if (topText.includes('autel')) globalSupplier = 'autel';
 
   const items: ParsedInventoryItem[] = [];
 
   for (let i = headerRowIdx + 1; i < rows.length; i++) {
     const row = rows[i];
-    const rawSku = skuCol !== -1 ? String(row[skuCol] ?? '').trim() : '';
-    const rawDesc = descCol !== -1 ? String(row[descCol] ?? '').trim() : '';
-    const rawQty = qtyCol !== -1 ? row[qtyCol] : '';
-    const rawPrice = priceCol !== -1 ? row[priceCol] : '';
 
-    // Skip empty rows
-    if (!rawSku && !rawDesc) continue;
-    // Skip header-like repeat rows
-    if (rawSku.toLowerCase() === 'sku' || rawDesc.toLowerCase() === 'description') continue;
+    const make     = makeCol !== -1    ? String(row[makeCol] ?? '').trim() : '';
+    const model    = modelCol !== -1   ? String(row[modelCol] ?? '').trim() : '';
+    const category = categoryCol !== -1 ? String(row[categoryCol] ?? '').trim() : '';
+    const fccId    = fccIdCol !== -1   ? String(row[fccIdCol] ?? '').trim() : '';
+    const chipType = chipTypeCol !== -1 ? String(row[chipTypeCol] ?? '').trim() : '';
+    const rawSupplier = supplierCol !== -1 ? String(row[supplierCol] ?? '').trim() : '';
+    const rawQty   = qtyCol !== -1     ? row[qtyCol] : '';
+    const rawPrice = priceCol !== -1   ? row[priceCol] : '';
+    const rawLowStock = lowStockCol !== -1 ? row[lowStockCol] : '';
+    const rawYearFrom = yearFromCol !== -1 ? row[yearFromCol] : '';
+    const rawYearTo   = yearToCol !== -1   ? row[yearToCol] : '';
 
-    const qty = parseInt(String(rawQty).replace(/[^0-9]/g, ''), 10) || 1;
-    const price = parseFloat(String(rawPrice).replace(/[^0-9.]/g, '')) || 0;
-    const total = totalCol !== -1
-      ? parseFloat(String(row[totalCol] ?? '').replace(/[^0-9.]/g, '')) || price * qty
-      : price * qty;
-    const itemSupplier = supplierCol !== -1 ? String(row[supplierCol] ?? '').trim() || supplier : supplier;
+    // Skip completely empty rows
+    if (!make && !model && !fccId && !chipType) continue;
+
+    const qty      = parseInt(String(rawQty).replace(/[^0-9]/g, ''), 10) || 0;
+    const price    = parseFloat(String(rawPrice).replace(/[^0-9.]/g, '')) || 0;
+    const lowStock = parseInt(String(rawLowStock).replace(/[^0-9]/g, ''), 10) || 3;
+    const yearFrom = rawYearFrom ? parseInt(String(rawYearFrom).replace(/[^0-9]/g, ''), 10) || null : null;
+    const yearTo   = rawYearTo   ? parseInt(String(rawYearTo).replace(/[^0-9]/g, ''), 10) || null : null;
+
+    // Build auto description from make + model + category
+    const descParts = [make, model, yearFrom ? String(yearFrom) : '', category].filter(Boolean);
+    const description = descParts.join(' ') || fccId || chipType || `ROW-${i}`;
+
+    // Build SKU from fcc id, or fall back to make+model shorthand
+    const sku = fccId || [make, model, yearFrom].filter(Boolean).join('-') || `ROW-${i}`;
 
     items.push({
-      sku: rawSku || `ROW-${i}`,
-      description: rawDesc || rawSku,
+      sku,
+      description,
       price,
       quantity: qty,
-      total,
-      supplier: itemSupplier,
-      category: getCategoryFromSKU(rawSku) || guessKeyTypeFromDescription(rawDesc) || 'Uncategorized',
+      total: price * qty,
+      supplier: rawSupplier || globalSupplier,
+      category: category || 'Uncategorized',
+      make: make || undefined,
+      model: model || undefined,
+      yearFrom,
+      yearTo,
+      fccId: fccId || undefined,
+      chipType: chipType || undefined,
+      lowStockThreshold: lowStock,
     });
   }
 
-  return { supplier, items };
+  return { supplier: globalSupplier, items };
 }
 
 /**
@@ -397,6 +423,13 @@ export interface ParsedInventoryItem {
   total: number;
   supplier: string;
   category: string;
+  make?: string;
+  model?: string;
+  yearFrom?: number | null;
+  yearTo?: number | null;
+  fccId?: string;
+  chipType?: string;
+  lowStockThreshold?: number;
 }
 
 /**
@@ -408,12 +441,15 @@ export function mapToInventoryItem(item: ParsedInventoryItem, userId: string): P
     itemName: item.description,
     cost: item.price,
     quantity: item.quantity,
-    supplier: item.supplier,
-    category: item.category,
-    keyType: guessKeyTypeFromDescription(item.description),
-    make: guessMakeFromDescription(item.description),
-    model: 'n/a',
-    lowStockThreshold: 3,
+    supplier: item.supplier || null,
+    category: item.category || null,
+    keyType: item.chipType || guessKeyTypeFromDescription(item.description),
+    make: item.make || guessMakeFromDescription(item.description) || null,
+    model: item.model || null,
+    yearFrom: item.yearFrom ?? null,
+    yearTo: item.yearTo ?? null,
+    fccId: item.fccId || null,
+    lowStockThreshold: item.lowStockThreshold ?? 3,
     userId
   };
 }

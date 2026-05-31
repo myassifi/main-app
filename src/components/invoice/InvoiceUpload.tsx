@@ -23,6 +23,13 @@ interface InvoiceItem {
   total: number;
   supplier: string;
   category: string;
+  make?: string;
+  model?: string;
+  yearFrom?: number | null;
+  yearTo?: number | null;
+  fccId?: string;
+  chipType?: string;
+  lowStockThreshold?: number;
 }
 
 interface InvoiceUploadProps {
@@ -236,12 +243,17 @@ export default function InvoiceUpload({ onComplete, open: controlledOpen, onOpen
                 <table className="w-full">
                   <thead className="bg-muted/50 sticky top-0">
                     <tr className="text-left text-xs">
-                      <th className="p-2 font-medium">SKU</th>
-                      <th className="p-2 font-medium">Description</th>
-                      <th className="p-2 font-medium">Price</th>
-                      <th className="p-2 font-medium">Qty</th>
-                      <th className="p-2 font-medium">Total</th>
+                      <th className="p-2 font-medium">Make</th>
+                      <th className="p-2 font-medium">Model</th>
+                      <th className="p-2 font-medium">Year From</th>
+                      <th className="p-2 font-medium">Year To</th>
                       <th className="p-2 font-medium">Category</th>
+                      <th className="p-2 font-medium">FCC ID</th>
+                      <th className="p-2 font-medium">Chip Type</th>
+                      <th className="p-2 font-medium">Supplier</th>
+                      <th className="p-2 font-medium">Qty</th>
+                      <th className="p-2 font-medium">Unit Cost</th>
+                      <th className="p-2 font-medium">Low Stock</th>
                       <th className="p-2 font-medium">Action</th>
                     </tr>
                   </thead>
@@ -249,52 +261,40 @@ export default function InvoiceUpload({ onComplete, open: controlledOpen, onOpen
                     {parsedItems.map((item, index) => (
                       <tr key={index} className="border-b text-sm">
                         <td className="p-2">
-                          <Input
-                            size={15}
-                            value={item.sku}
-                            onChange={(e) => handleEdit(index, 'sku', e.target.value)}
-                            className="h-8 text-xs"
-                          />
+                          <Input value={item.make || ''} onChange={(e) => handleEdit(index, 'make', e.target.value)} className="h-8 text-xs w-24" />
                         </td>
                         <td className="p-2">
-                          <Input
-                            value={item.description}
-                            onChange={(e) => handleEdit(index, 'description', e.target.value)}
-                            className="h-8 text-xs"
-                          />
+                          <Input value={item.model || ''} onChange={(e) => handleEdit(index, 'model', e.target.value)} className="h-8 text-xs w-24" />
                         </td>
                         <td className="p-2">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={item.price}
-                            onChange={(e) => handleEdit(index, 'price', parseFloat(e.target.value))}
-                            className="h-8 w-20 text-xs"
-                          />
+                          <Input type="number" value={item.yearFrom ?? ''} onChange={(e) => handleEdit(index, 'yearFrom', parseInt(e.target.value, 10) || null)} className="h-8 text-xs w-20" />
                         </td>
                         <td className="p-2">
-                          <Input
-                            type="number"
-                            value={item.quantity}
-                            onChange={(e) => handleEdit(index, 'quantity', parseInt(e.target.value, 10))}
-                            className="h-8 w-16 text-xs"
-                          />
+                          <Input type="number" value={item.yearTo ?? ''} onChange={(e) => handleEdit(index, 'yearTo', parseInt(e.target.value, 10) || null)} className="h-8 text-xs w-20" />
                         </td>
                         <td className="p-2">
-                          ${(item.price * item.quantity).toFixed(2)}
+                          <Input value={item.category || ''} onChange={(e) => handleEdit(index, 'category', e.target.value)} className="h-8 text-xs w-28" />
                         </td>
                         <td className="p-2">
-                          <Badge variant="secondary" className="text-xs">
-                            {item.category}
-                          </Badge>
+                          <Input value={item.fccId || ''} onChange={(e) => handleEdit(index, 'fccId', e.target.value)} className="h-8 text-xs w-28" />
                         </td>
                         <td className="p-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => handleRemove(index)}
-                            className="h-8 w-8 p-0"
-                          >
+                          <Input value={item.chipType || ''} onChange={(e) => handleEdit(index, 'chipType', e.target.value)} className="h-8 text-xs w-24" />
+                        </td>
+                        <td className="p-2">
+                          <Input value={item.supplier || ''} onChange={(e) => handleEdit(index, 'supplier', e.target.value)} className="h-8 text-xs w-24" />
+                        </td>
+                        <td className="p-2">
+                          <Input type="number" value={item.quantity} onChange={(e) => handleEdit(index, 'quantity', parseInt(e.target.value, 10))} className="h-8 w-16 text-xs" />
+                        </td>
+                        <td className="p-2">
+                          <Input type="number" step="0.01" value={item.price} onChange={(e) => handleEdit(index, 'price', parseFloat(e.target.value))} className="h-8 w-20 text-xs" />
+                        </td>
+                        <td className="p-2">
+                          <Input type="number" value={item.lowStockThreshold ?? 3} onChange={(e) => handleEdit(index, 'lowStockThreshold', parseInt(e.target.value, 10))} className="h-8 w-16 text-xs" />
+                        </td>
+                        <td className="p-2">
+                          <Button variant="ghost" size="sm" onClick={() => handleRemove(index)} className="h-8 w-8 p-0">
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </td>
