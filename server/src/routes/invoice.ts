@@ -3,13 +3,9 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { PrismaClient } from '@prisma/client';
-import { parseInvoice, mapToInventoryItem } from '../utils/invoiceParser';
+import { parseInvoice, parseXlsxInvoice, mapToInventoryItem } from '../utils/invoiceParser';
 import type { ParsedInventoryItem } from '../utils/invoiceParser';
-
-// pdf-parse v2 exports a PDFParse class; instantiate it and call getText().
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const pdfParseModule = require('pdf-parse');
-const PDFParse = pdfParseModule?.PDFParse;
+import * as XLSX from 'xlsx';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -35,14 +31,21 @@ const storage = multer.diskStorage({
   }
 });
 
+const XLSX_MIMETYPES = [
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel',
+  'application/octet-stream',
+];
+
 const upload = multer({
   storage: storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/pdf') {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ext === '.xlsx' || ext === '.xls' || XLSX_MIMETYPES.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Only PDF files allowed') as any, false);
+      cb(new Error('Only Excel files (.xlsx / .xls) are allowed') as any, false);
     }
   }
 });
@@ -63,44 +66,29 @@ router.post('/import-invoice', upload.single('invoice'), async (req: AuthRequest
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const pdfPath = req.file.path;
-    const dataBuffer = fs.readFileSync(pdfPath);
-    
-    // Parse PDF with enhanced error handling
-    console.log(`Attempting to parse PDF from path: ${pdfPath}`);
-    console.log(`PDF file size: ${dataBuffer.length} bytes`);
-    
+    const filePath = req.file.path;
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const dataBuffer = fs.readFileSync(filePath);
+
+    console.log(`Attempting to parse XLSX from path: ${filePath}`);
+    console.log(`File size: ${dataBuffer.length} bytes`);
+
     let supplier: string = 'unknown';
     let items: ParsedInventoryItem[] = [];
-    
+
     try {
-      if (!PDFParse) {
-        throw new Error('PDFParse class not available from pdf-parse');
-      }
-
-      const parser = new PDFParse({ data: dataBuffer });
-      const pdfData = await parser.getText();
-      await parser.destroy();
-
-      const text = pdfData?.text || '';
-      console.log(`PDF parsed successfully, extracted ${text.length} characters`);
-      
-      // Debug: Log first 500 chars of extracted text
-      console.log(`PDF text preview: ${text.substring(0, 500)}...`);
-      
-      // Parse invoice based on supplier
-      const result = parseInvoice(text);
+      const workbook = XLSX.read(dataBuffer, { type: 'buffer' });
+      const result = parseXlsxInvoice(workbook);
       supplier = result.supplier;
       items = result.items;
-      
-      console.log(`Detected supplier: ${supplier}, found ${items.length} items`);
+      console.log(`XLSX parsed successfully, found ${items.length} items`);
     } catch (parseError: any) {
-      console.error('PDF parsing internal error:', parseError);
-      throw new Error(`PDF parsing failed: ${parseError.message || 'Unknown error'}`);
+      console.error('XLSX parsing internal error:', parseError);
+      throw new Error(`XLSX parsing failed: ${parseError.message || 'Unknown error'}`);
     }
     
-    // Clean up uploaded file (optional - comment out if you want to keep PDFs)
-    // fs.unlinkSync(pdfPath);
+    // Clean up uploaded file
+    // fs.unlinkSync(filePath);
     
     res.json({
       success: true,

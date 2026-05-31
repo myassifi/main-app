@@ -47,13 +47,21 @@ export default function InvoiceUpload({ onComplete, open: controlledOpen, onOpen
   };
   const [importingItems, setImportingItems] = useState(false);
 
+  const XLSX_TYPES = [
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-excel',
+    'application/octet-stream',
+  ];
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
-    if (selectedFile && selectedFile.type === 'application/pdf') {
+    if (!selectedFile) return;
+    const ext = selectedFile.name.split('.').pop()?.toLowerCase();
+    if (ext === 'xlsx' || ext === 'xls' || XLSX_TYPES.includes(selectedFile.type)) {
       setFile(selectedFile);
       setError('');
-    } else if (selectedFile) {
-      setError('Please select a PDF file');
+    } else {
+      setError('Please select an Excel file (.xlsx or .xls)');
       setFile(null);
     }
   };
@@ -158,7 +166,7 @@ export default function InvoiceUpload({ onComplete, open: controlledOpen, onOpen
               <div className="bg-muted/30 border border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
                 <input
                   type="file"
-                  accept=".pdf"
+                  accept=".xlsx,.xls"
                   onChange={handleFileChange}
                   id="invoice-file"
                   className="hidden"
@@ -172,10 +180,10 @@ export default function InvoiceUpload({ onComplete, open: controlledOpen, onOpen
                   </div>
                   <div>
                     <p className="font-medium text-base">
-                      {file ? file.name : 'Choose PDF Invoice'}
+                      {file ? file.name : 'Choose Excel Invoice (.xlsx)'}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      Select a PDF invoice from Key4, Transponder Island or other suppliers
+                      Select an Excel file (.xlsx / .xls) from Key4, Transponder Island or other suppliers
                     </p>
                   </div>
                 </label>

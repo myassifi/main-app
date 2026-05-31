@@ -1,5 +1,88 @@
 // Invoice Parser Utility Functions
 import { InventoryItem } from '@prisma/client';
+import * as XLSX from 'xlsx';
+
+/**
+ * Parse any XLSX/XLS workbook into inventory items.
+ * Reads the first sheet, auto-detects header row, maps columns by name.
+ */
+export function parseXlsxInvoice(workbook: XLSX.WorkBook): { supplier: string; items: ParsedInventoryItem[] } {
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+
+  // Convert to array of arrays (raw rows)
+  const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+  if (rows.length < 2) return { supplier: 'unknown', items: [] };
+
+  // Find header row (first row with at least 2 non-empty cells)
+  let headerRowIdx = 0;
+  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+    const nonEmpty = rows[i].filter((c: any) => String(c).trim() !== '').length;
+    if (nonEmpty >= 2) { headerRowIdx = i; break; }
+  }
+
+  const headers = rows[headerRowIdx].map((h: any) => String(h).toLowerCase().trim());
+
+  // Flexible column mapping
+  const col = (names: string[]) => {
+    for (const n of names) {
+      const idx = headers.findIndex(h => h.includes(n));
+      if (idx !== -1) return idx;
+    }
+    return -1;
+  };
+
+  const skuCol   = col(['sku', 'part', 'item #', 'item#', 'code', 'product id', 'part number']);
+  const descCol  = col(['desc', 'name', 'item name', 'product', 'title']);
+  const qtyCol   = col(['qty', 'quantity', 'ordered', 'amount']);
+  const priceCol = col(['price', 'unit price', 'cost', 'each', 'rate']);
+  const totalCol = col(['total', 'ext', 'extended', 'line total']);
+  const supplierCol = col(['supplier', 'vendor', 'brand', 'source']);
+
+  // Detect supplier from sheet name or first few rows
+  const topText = rows.slice(0, 5).flat().join(' ').toLowerCase();
+  let supplier = 'unknown';
+  if (topText.includes('key4')) supplier = 'key4.com';
+  else if (topText.includes('transponder island')) supplier = 'transponderisland.com';
+  else if (topText.includes('xhorse')) supplier = 'xhorse';
+  else if (topText.includes('keydiy')) supplier = 'keydiy';
+  else if (topText.includes('autel')) supplier = 'autel';
+
+  const items: ParsedInventoryItem[] = [];
+
+  for (let i = headerRowIdx + 1; i < rows.length; i++) {
+    const row = rows[i];
+    const rawSku = skuCol !== -1 ? String(row[skuCol] ?? '').trim() : '';
+    const rawDesc = descCol !== -1 ? String(row[descCol] ?? '').trim() : '';
+    const rawQty = qtyCol !== -1 ? row[qtyCol] : '';
+    const rawPrice = priceCol !== -1 ? row[priceCol] : '';
+
+    // Skip empty rows
+    if (!rawSku && !rawDesc) continue;
+    // Skip header-like repeat rows
+    if (rawSku.toLowerCase() === 'sku' || rawDesc.toLowerCase() === 'description') continue;
+
+    const qty = parseInt(String(rawQty).replace(/[^0-9]/g, ''), 10) || 1;
+    const price = parseFloat(String(rawPrice).replace(/[^0-9.]/g, '')) || 0;
+    const total = totalCol !== -1
+      ? parseFloat(String(row[totalCol] ?? '').replace(/[^0-9.]/g, '')) || price * qty
+      : price * qty;
+    const itemSupplier = supplierCol !== -1 ? String(row[supplierCol] ?? '').trim() || supplier : supplier;
+
+    items.push({
+      sku: rawSku || `ROW-${i}`,
+      description: rawDesc || rawSku,
+      price,
+      quantity: qty,
+      total,
+      supplier: itemSupplier,
+      category: getCategoryFromSKU(rawSku) || guessKeyTypeFromDescription(rawDesc) || 'Uncategorized',
+    });
+  }
+
+  return { supplier, items };
+}
 
 /**
  * Detect supplier from invoice text
